@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/background"
+    android:padding="14dp">
+
+    <!-- Header bar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="10dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tv_dialog_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Recording File"
+                android:textColor="@color/primary"
+                android:textSize="15sp"
+                android:fontFamily="@font/inter"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="middle" />
+
+            <TextView
+                android:id="@+id/tv_dialog_subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0 rows · 0 columns"
+                android:textColor="@color/on_surface_muted"
+                android:textSize="11.5sp"
+                android:fontFamily="@font/jetbrains_mono"
+                android:layout_marginTop="3dp" />
+
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_dialog_close"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="CLOSE"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:textColor="@color/error"
+            android:textSize="12sp"
+            android:fontFamily="@font/inter"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/surface_border"
+        android:layout_marginBottom="10dp" />
+
+    <!-- Table Container -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        app:cardBackgroundColor="@color/surface"
+        app:cardCornerRadius="12dp"
+        app:strokeColor="@color/surface_border"
+        app:strokeWidth="1dp"
+        app:cardElevation="0dp">
+
+        <HorizontalScrollView
+            android:id="@+id/horizontal_scroll"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true">
+
+            <ScrollView
+                android:id="@+id/vertical_scroll"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent">
+
+                <TableLayout
+                    android:id="@+id/table_layout"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
+            </ScrollView>
+
+        </HorizontalScrollView>
+
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Pagination & Action Footer -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="10dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_page_prev"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:text="◀ PREV"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:textSize="11.5sp"
+            android:fontFamily="@font/inter"
+            android:textStyle="bold"
+            app:strokeColor="@color/surface_border"
+            app:cornerRadius="8dp" />
+
+        <TextView
+            android:id="@+id/tv_page_indicator"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Page 1 of 1"
+            android:textColor="@color/on_surface_muted"
+            android:textSize="11.5sp"
+            android:gravity="center"
+            android:fontFamily="@font/jetbrains_mono" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_page_next"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:text="NEXT ▶"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:textSize="11.5sp"
+            android:fontFamily="@font/inter"
+            android:textStyle="bold"
+            app:strokeColor="@color/surface_border"
+            app:cornerRadius="8dp" />
+
+    </LinearLayout>
+
+</LinearLayout>

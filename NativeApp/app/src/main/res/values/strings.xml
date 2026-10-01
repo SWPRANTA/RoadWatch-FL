@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">RoadWatch FL</string>
+    <string name="tab_monitor">Monitor</string>
+    <string name="tab_recordings">Recordings</string>
+    <string name="tab_settings">Settings</string>
+</resources>

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand / Primary (Modern Electric Cyan) -->
+    <color name="primary">#00D8F6</color>
+    <color name="primary_variant">#0097A7</color>
+    <color name="primary_container">#0E3344</color>
+    <color name="on_primary">#001F29</color>
+    <color name="on_primary_container">#80EAFF</color>
+
+    <!-- Secondary (Refined Indigo/Violet) -->
+    <color name="secondary">#818CF8</color>
+    <color name="secondary_variant">#4F46E5</color>
+    <color name="secondary_container">#1E2243</color>
+    <color name="on_secondary">#13103B</color>
+
+    <!-- Tertiary (Warm Amber for Live Telemetry / Frequency) -->
+    <color name="tertiary">#F59E0B</color>
+    <color name="tertiary_container">#382405</color>
+    <color name="on_tertiary">#1F1300</color>
+
+    <!-- Surfaces & Background (Deep Sleek Slate Palette) -->
+    <color name="background">#0B0F17</color>
+    <color name="surface">#131B26</color>
+    <color name="surface_variant">#1C2636</color>
+    <color name="surface_elevated">#233044</color>
+    <color name="surface_border">#222F42</color>
+    <color name="surface_border_light">#2E3E57</color>
+
+    <!-- Typography Colors -->
+    <color name="on_background">#F8FAFC</color>
+    <color name="on_surface">#F1F5F9</color>
+    <color name="on_surface_variant">#94A3B8</color>
+    <color name="on_surface_muted">#64748B</color>
+
+    <!-- Status & Alerts -->
+    <color name="error">#EF4444</color>
+    <color name="error_container">#3B1418</color>
+    <color name="on_error">#FFFFFF</color>
+    <color name="success">#10B981</color>
+    <color name="success_container">#0D3222</color>
+    <color name="on_success">#FFFFFF</color>
+    <color name="warning">#F59E0B</color>
+
+    <!-- Accents & Highlights -->
+    <color name="white">#FFFFFF</color>
+    <color name="border_white">#FFFFFF</color>
+    <color name="card_highlight">#15202E</color>
+    <color name="table_header_bg">#182333</color>
+    <color name="table_row_alt">#101721</color>
+    <color name="nav_indicator">#193444</color>
+</resources>
