@@ -31,6 +31,7 @@ data class SensorData(
     val rotY: Float = 0f,
     val rotZ: Float = 0f,
     val rotScalar: Float = 0f,
-    val label: String = "normal",
-    val motionState: String = "moving"
+    var label: String = "normal",
+    var motionState: String = "moving",
+    var elapsedMs: Long = 0L
 )

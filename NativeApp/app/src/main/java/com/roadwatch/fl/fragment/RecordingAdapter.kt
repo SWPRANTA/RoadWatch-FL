@@ -15,6 +15,7 @@ import java.util.Locale
 class RecordingAdapter(
     private val recordings: List<StorageManager.RecordingFile>,
     private val onView: (StorageManager.RecordingFile) -> Unit,
+    private val onRename: (StorageManager.RecordingFile) -> Unit,
     private val onShare: (StorageManager.RecordingFile) -> Unit,
     private val onDelete: (StorageManager.RecordingFile) -> Unit
 ) : RecyclerView.Adapter<RecordingAdapter.ViewHolder>() {
@@ -23,6 +24,7 @@ class RecordingAdapter(
         val name: TextView = view.findViewById(R.id.file_name)
         val details: TextView = view.findViewById(R.id.file_details)
         val btnView: MaterialButton = view.findViewById(R.id.btn_view)
+        val btnRename: MaterialButton = view.findViewById(R.id.btn_rename)
         val btnShare: MaterialButton = view.findViewById(R.id.btn_share)
         val btnDelete: MaterialButton = view.findViewById(R.id.btn_delete)
     }
@@ -43,6 +45,7 @@ class RecordingAdapter(
         holder.details.text = "$size - $date"
 
         holder.btnView.setOnClickListener { onView(file) }
+        holder.btnRename.setOnClickListener { onRename(file) }
         holder.btnShare.setOnClickListener { onShare(file) }
         holder.btnDelete.setOnClickListener { onDelete(file) }
     }

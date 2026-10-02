@@ -46,6 +46,18 @@
         </LinearLayout>
 
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_dialog_share"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="SHARE"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:textColor="@color/primary"
+            android:textSize="12sp"
+            android:fontFamily="@font/inter"
+            android:textStyle="bold"
+            android:layout_marginEnd="4dp" />
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_dialog_close"
             android:layout_width="wrap_content"
             android:layout_height="36dp"

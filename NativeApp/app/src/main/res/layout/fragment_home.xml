@@ -90,6 +90,24 @@
                             android:letterSpacing="0.12" />
 
                         <TextView
+                            android:id="@+id/tv_bt_sync_badge"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="SYNC: READY"
+                            android:textColor="@color/primary"
+                            android:textSize="10.5sp"
+                            android:fontFamily="@font/inter"
+                            android:textStyle="bold"
+                            android:letterSpacing="0.08"
+                            android:background="@drawable/badge_background"
+                            android:paddingStart="10dp"
+                            android:paddingEnd="10dp"
+                            android:paddingTop="4dp"
+                            android:paddingBottom="4dp"
+                            android:layout_marginEnd="6dp"
+                            android:visibility="gone" />
+
+                        <TextView
                             android:id="@+id/tv_status_badge"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
@@ -377,6 +395,10 @@
                     android:fontFamily="@font/inter"
                     android:textStyle="bold"
                     android:paddingHorizontal="14dp"
+                    app:backgroundTint="@color/btn_state_moving_bg"
+                    android:textColor="@color/btn_state_moving_text"
+                    app:strokeColor="@color/btn_state_moving_stroke"
+                    app:strokeWidth="1.5dp"
                     style="@style/Widget.Material3.Button.OutlinedButton" />
 
                 <com.google.android.material.button.MaterialButton
@@ -388,6 +410,10 @@
                     android:fontFamily="@font/inter"
                     android:textStyle="bold"
                     android:paddingHorizontal="14dp"
+                    app:backgroundTint="@color/btn_state_stopped_bg"
+                    android:textColor="@color/btn_state_stopped_text"
+                    app:strokeColor="@color/btn_state_stopped_stroke"
+                    app:strokeWidth="1.5dp"
                     style="@style/Widget.Material3.Button.OutlinedButton" />
 
             </com.google.android.material.button.MaterialButtonToggleGroup>

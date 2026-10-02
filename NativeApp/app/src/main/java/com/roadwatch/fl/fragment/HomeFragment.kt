@@ -25,6 +25,7 @@ import com.google.android.material.chip.ChipGroup
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.roadwatch.fl.MainActivity
 import com.roadwatch.fl.R
+import com.roadwatch.fl.bluetooth.BluetoothSyncManager
 import com.roadwatch.fl.model.SensorData
 import com.roadwatch.fl.service.SensorService
 
@@ -35,6 +36,7 @@ class HomeFragment : Fragment() {
     private var selectedSensor = "Accelerometer"
     private var currentLabel = "normal"
     private var currentMotionState = "moving"
+    private var isRemoteUpdate = false
 
     private val sensors = listOf(
         "Accelerometer",
@@ -61,9 +63,12 @@ class HomeFragment : Fragment() {
     private lateinit var chipGroup: ChipGroup
     private lateinit var btnAddLabel: MaterialButton
     private lateinit var toggleMotionState: MaterialButtonToggleGroup
+    private lateinit var btnStateMoving: MaterialButton
+    private lateinit var btnStateStopped: MaterialButton
 
     // Recording Frequency Card Views
     private lateinit var tvStatusBadge: TextView
+    private lateinit var tvBtSyncBadge: TextView
     private lateinit var tvLiveFreq: TextView
     private lateinit var tvTargetFreq: TextView
     private lateinit var tvSampleCount: TextView
@@ -90,8 +95,11 @@ class HomeFragment : Fragment() {
         chipGroup = view.findViewById(R.id.chip_group)
         btnAddLabel = view.findViewById(R.id.btn_add_label)
         toggleMotionState = view.findViewById(R.id.toggle_motion_state)
+        btnStateMoving = view.findViewById(R.id.btn_state_moving)
+        btnStateStopped = view.findViewById(R.id.btn_state_stopped)
 
         tvStatusBadge = view.findViewById(R.id.tv_status_badge)
+        tvBtSyncBadge = view.findViewById(R.id.tv_bt_sync_badge)
         tvLiveFreq = view.findViewById(R.id.tv_live_freq)
         tvTargetFreq = view.findViewById(R.id.tv_target_freq)
         tvSampleCount = view.findViewById(R.id.tv_sample_count)
@@ -103,6 +111,7 @@ class HomeFragment : Fragment() {
         setupButtons()
         setupMotionStateToggle()
         setupAddLabelButton()
+        setupBluetoothSyncBadge()
         syncServiceState()
         updateActiveLabelDisplay()
     }
@@ -113,6 +122,7 @@ class HomeFragment : Fragment() {
         syncServiceState()
         updateDataDisplay()
         updateActiveLabelDisplay()
+        updateMotionStateButtonsUI()
     }
 
     fun onRecordingStateChanged(recording: Boolean, paused: Boolean) {
@@ -123,6 +133,127 @@ class HomeFragment : Fragment() {
                 updateButtonStates()
                 updateFrequencyCard()
             }
+        }
+    }
+
+    fun onRemoteMotionStateChanged(state: String) {
+        currentMotionState = state
+        view?.post {
+            if (!isAdded) return@post
+            if (::toggleMotionState.isInitialized) {
+                val targetId = if (state == "stopped") R.id.btn_state_stopped else R.id.btn_state_moving
+                if (toggleMotionState.checkedButtonId != targetId) {
+                    isRemoteUpdate = true
+                    try {
+                        toggleMotionState.check(targetId)
+                    } finally {
+                        isRemoteUpdate = false
+                    }
+                }
+                updateMotionStateButtonsUI()
+            }
+        }
+    }
+
+    fun onRemoteLabelChanged(label: String) {
+        currentLabel = label
+        view?.post {
+            if (!isAdded) return@post
+            updateActiveLabelDisplay()
+            if (::chipGroup.isInitialized) {
+                isRemoteUpdate = true
+                try {
+                    var found = false
+                    for (i in 0 until chipGroup.childCount) {
+                        val chip = chipGroup.getChildAt(i) as? Chip
+                        val match = chip?.text.toString().equals(label, ignoreCase = true)
+                        if (chip?.isChecked != match) {
+                            chip?.isChecked = match
+                        }
+                        if (match) found = true
+                    }
+                    if (!found && label != "normal") {
+                        val newChip = createLabelChip(label, isCustom = true)
+                        chipGroup.addView(newChip)
+                        newChip.isChecked = true
+                    }
+                } finally {
+                    isRemoteUpdate = false
+                }
+            }
+        }
+    }
+
+    private fun setupBluetoothSyncBadge() {
+        val btManager = BluetoothSyncManager.getInstance(requireContext())
+        btManager.registerStateListener(btStateListener)
+        updateBtSyncBadgeUI(btManager.getConnectionState(), btManager.getConnectedDeviceName())
+        tvBtSyncBadge.setOnClickListener {
+            val state = btManager.getConnectionState()
+            val device = btManager.getConnectedDeviceName()
+            val count = btManager.getConnectedPeerCount()
+            val info = when (state) {
+                BluetoothSyncManager.ConnectionState.CONNECTED -> {
+                    if (count > 1) "Synced with $count peers: $device" else "Synced with $device"
+                }
+                BluetoothSyncManager.ConnectionState.CONNECTING -> "Connecting to $device..."
+                BluetoothSyncManager.ConnectionState.LISTENING -> "Waiting for peer connection..."
+                BluetoothSyncManager.ConnectionState.DISCONNECTED -> "Sync enabled but disconnected"
+                BluetoothSyncManager.ConnectionState.DISABLED -> "Bluetooth Sync is OFF (Configure in Settings)"
+            }
+            Toast.makeText(context, info, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private val btStateListener: (BluetoothSyncManager.ConnectionState, String?) -> Unit = { state, deviceName ->
+        view?.post {
+            if (isAdded) {
+                updateBtSyncBadgeUI(state, deviceName)
+            }
+        }
+    }
+
+    private fun updateBtSyncBadgeUI(state: BluetoothSyncManager.ConnectionState, deviceName: String?) {
+        if (!::tvBtSyncBadge.isInitialized) return
+        val btManager = BluetoothSyncManager.getInstance(requireContext())
+        when (state) {
+            BluetoothSyncManager.ConnectionState.CONNECTED -> {
+                tvBtSyncBadge.visibility = View.VISIBLE
+                val count = btManager.getConnectedPeerCount()
+                if (count > 1) {
+                    tvBtSyncBadge.text = "SYNC: $count PEERS"
+                } else {
+                    val name = deviceName ?: "PEER"
+                    val truncated = if (name.length > 10) name.take(9) + "…" else name
+                    tvBtSyncBadge.text = "SYNC: $truncated"
+                }
+                tvBtSyncBadge.setTextColor(ContextCompat.getColor(requireContext(), R.color.primary))
+            }
+            BluetoothSyncManager.ConnectionState.CONNECTING -> {
+                tvBtSyncBadge.visibility = View.VISIBLE
+                tvBtSyncBadge.text = "SYNC: CONNECTING"
+                tvBtSyncBadge.setTextColor(ContextCompat.getColor(requireContext(), R.color.tertiary))
+            }
+            BluetoothSyncManager.ConnectionState.LISTENING -> {
+                tvBtSyncBadge.visibility = View.VISIBLE
+                tvBtSyncBadge.text = "SYNC: LISTENING"
+                tvBtSyncBadge.setTextColor(ContextCompat.getColor(requireContext(), R.color.tertiary))
+            }
+            BluetoothSyncManager.ConnectionState.DISCONNECTED -> {
+                tvBtSyncBadge.visibility = View.VISIBLE
+                tvBtSyncBadge.text = "SYNC: NO PEER"
+                tvBtSyncBadge.setTextColor(ContextCompat.getColor(requireContext(), R.color.on_surface_muted))
+            }
+            BluetoothSyncManager.ConnectionState.DISABLED -> {
+                tvBtSyncBadge.visibility = View.GONE
+            }
+        }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        context?.let { ctx ->
+            BluetoothSyncManager.getInstance(ctx).unregisterStateListener(btStateListener)
         }
     }
 
@@ -139,6 +270,7 @@ class HomeFragment : Fragment() {
             if (toggleMotionState.checkedButtonId != targetId) {
                 toggleMotionState.check(targetId)
             }
+            updateMotionStateButtonsUI()
         }
         if (::chipGroup.isInitialized) {
             for (i in 0 until chipGroup.childCount) {
@@ -323,6 +455,7 @@ class HomeFragment : Fragment() {
             }
 
             setOnCheckedChangeListener { _, isChecked ->
+                if (isRemoteUpdate) return@setOnCheckedChangeListener
                 if (isChecked) {
                     currentLabel = label
                     updateActiveLabelDisplay()
@@ -349,13 +482,52 @@ class HomeFragment : Fragment() {
         val initialMotionState = (activity as? MainActivity)?.getSensorService()?.getMotionState() ?: currentMotionState
         val targetId = if (initialMotionState == "stopped") R.id.btn_state_stopped else R.id.btn_state_moving
         toggleMotionState.check(targetId)
+        updateMotionStateButtonsUI()
 
         toggleMotionState.addOnButtonCheckedListener { _, checkedId, isChecked ->
             if (isChecked) {
                 val state = if (checkedId == R.id.btn_state_stopped) "stopped" else "moving"
                 currentMotionState = state
-                (activity as? MainActivity)?.getSensorService()?.setMotionState(state)
+                if (!isRemoteUpdate) {
+                    (activity as? MainActivity)?.getSensorService()?.setMotionState(state)
+                }
+                updateMotionStateButtonsUI()
             }
+        }
+    }
+
+    private fun updateMotionStateButtonsUI() {
+        if (!isAdded || !::btnStateMoving.isInitialized || !::btnStateStopped.isInitialized) return
+        val isMoving = currentMotionState == "moving"
+
+        val context = requireContext()
+        val successColor = ContextCompat.getColor(context, R.color.success)
+        val errorColor = ContextCompat.getColor(context, R.color.error)
+        val surfaceColor = ContextCompat.getColor(context, R.color.surface)
+        val surfaceBorderColor = ContextCompat.getColor(context, R.color.surface_border)
+        val textMutedColor = ContextCompat.getColor(context, R.color.on_surface_muted)
+        val whiteColor = ContextCompat.getColor(context, R.color.white)
+
+        if (isMoving) {
+            btnStateMoving.backgroundTintList = ColorStateList.valueOf(successColor)
+            btnStateMoving.setTextColor(whiteColor)
+            btnStateMoving.strokeColor = ColorStateList.valueOf(successColor)
+            btnStateMoving.strokeWidth = (resources.displayMetrics.density * 1.5f).toInt()
+
+            btnStateStopped.backgroundTintList = ColorStateList.valueOf(surfaceColor)
+            btnStateStopped.setTextColor(textMutedColor)
+            btnStateStopped.strokeColor = ColorStateList.valueOf(surfaceBorderColor)
+            btnStateStopped.strokeWidth = (resources.displayMetrics.density * 1f).toInt()
+        } else {
+            btnStateMoving.backgroundTintList = ColorStateList.valueOf(surfaceColor)
+            btnStateMoving.setTextColor(textMutedColor)
+            btnStateMoving.strokeColor = ColorStateList.valueOf(surfaceBorderColor)
+            btnStateMoving.strokeWidth = (resources.displayMetrics.density * 1f).toInt()
+
+            btnStateStopped.backgroundTintList = ColorStateList.valueOf(errorColor)
+            btnStateStopped.setTextColor(whiteColor)
+            btnStateStopped.strokeColor = ColorStateList.valueOf(errorColor)
+            btnStateStopped.strokeWidth = (resources.displayMetrics.density * 1.5f).toInt()
         }
     }
 

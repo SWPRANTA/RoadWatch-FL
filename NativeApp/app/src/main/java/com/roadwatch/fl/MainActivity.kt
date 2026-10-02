@@ -28,6 +28,9 @@ class MainActivity : AppCompatActivity() {
             // Connect service callbacks to HomeFragment
             setupServiceCallbacks()
 
+            // Sync Bluetooth service state
+            s.syncBluetoothServiceState()
+
             // Synchronize immediate state with currently active HomeFragment
             runOnUiThread {
                 getVisibleHomeFragment()?.onRecordingStateChanged(s.isRecording(), s.isPaused())
@@ -68,6 +71,18 @@ class MainActivity : AppCompatActivity() {
                 getVisibleHomeFragment()?.onRecordingStateChanged(false, false)
             }
         }
+
+        sensorService?.onRemoteMotionStateChanged = { state ->
+            runOnUiThread {
+                getVisibleHomeFragment()?.onRemoteMotionStateChanged(state)
+            }
+        }
+
+        sensorService?.onRemoteLabelChanged = { label ->
+            runOnUiThread {
+                getVisibleHomeFragment()?.onRemoteLabelChanged(label)
+            }
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -80,6 +95,16 @@ class MainActivity : AppCompatActivity() {
 
         val bottomNav = findViewById<BottomNavigationView>(R.id.bottom_nav)
         bottomNav.setupWithNavController(navController)
+
+        // If Bluetooth sync is enabled, ensure SensorService is running in foreground
+        if (com.roadwatch.fl.bluetooth.BluetoothSyncManager.getInstance(this).isSyncEnabled()) {
+            val serviceIntent = Intent(this, SensorService::class.java)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent)
+            } else {
+                startService(serviceIntent)
+            }
+        }
 
         // Bind to SensorService
         Intent(this, SensorService::class.java).also { intent ->

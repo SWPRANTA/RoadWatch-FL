@@ -61,6 +61,11 @@ class TableViewerDialog(
         tvTitle.text = fileName
         btnClose.setOnClickListener { dismiss() }
 
+        val btnShare = findViewById<MaterialButton>(R.id.btn_dialog_share)
+        btnShare?.setOnClickListener {
+            com.roadwatch.fl.util.FileShareUtils.shareRecordingFile(context, File(filePath), fileName)
+        }
+
         btnPrev.setOnClickListener {
             if (currentPage > 0) {
                 currentPage--

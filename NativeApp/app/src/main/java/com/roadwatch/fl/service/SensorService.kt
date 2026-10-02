@@ -16,11 +16,15 @@ import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Binder
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.PowerManager
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.roadwatch.fl.MainActivity
 import com.roadwatch.fl.R
+import com.roadwatch.fl.bluetooth.BluetoothSyncManager
 import com.roadwatch.fl.model.SensorData
 import com.roadwatch.fl.util.StorageManager
 import java.util.concurrent.CopyOnWriteArrayList
@@ -81,11 +85,19 @@ class SensorService : Service(), SensorEventListener, LocationListener {
 
     private var currentLabel = "normal"
     private var currentMotionState = "moving"
+    private var sessionStartTime = 0L
+    private var scheduledStartRunnable: Runnable? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    private lateinit var bluetoothSyncManager: BluetoothSyncManager
+    private var wakeLock: PowerManager.WakeLock? = null
 
     // Callback for UI updates
     var onDataUpdate: ((SensorData) -> Unit)? = null
     var onRecordingStopped: ((java.io.File) -> Unit)? = null
     var onStateChange: ((recording: Boolean, paused: Boolean) -> Unit)? = null
+    var onRemoteLabelChanged: ((String) -> Unit)? = null
+    var onRemoteMotionStateChanged: ((String) -> Unit)? = null
 
     fun isRecording(): Boolean = isRecording.get()
     fun isPaused(): Boolean = isPaused.get()
@@ -119,47 +131,209 @@ class SensorService : Service(), SensorEventListener, LocationListener {
         storageManager = StorageManager(this)
         createNotificationChannel()
         registerLocationUpdates()
+        bluetoothSyncManager = BluetoothSyncManager.getInstance(this)
+        setupBluetoothSync()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForeground(NOTIFICATION_ID, createNotification("Recording..."))
+        val initialText = if (isRecording.get()) "Recording..." else "RoadWatch Sync Ready"
+        startForeground(NOTIFICATION_ID, createNotification(initialText))
+        updateNotificationBasedOnState()
         return START_STICKY
     }
 
-    fun startRecording() {
+    private fun setupBluetoothSync() {
+        bluetoothSyncManager.registerCommandListener { command, payload ->
+            when (command) {
+                BluetoothSyncManager.CMD_START -> {
+                    if (!isRecording.get()) {
+                        val intent = Intent(this, SensorService::class.java)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            startForegroundService(intent)
+                        } else {
+                            startService(intent)
+                        }
+                        val parts = payload?.split(":")
+                        val remoteTarget = if (parts != null && parts.size >= 2) parts[1].toLongOrNull() else null
+                        val localTarget = if (remoteTarget != null) {
+                            bluetoothSyncManager.convertRemoteTimeToLocal(remoteTarget)
+                        } else null
+                        startRecording(broadcastToBt = false, rendezvousTargetTime = localTarget)
+                    }
+                }
+                BluetoothSyncManager.CMD_PAUSE -> {
+                    if (isRecording.get() && !isPaused.get()) {
+                        pauseRecording(broadcastToBt = false)
+                    }
+                }
+                BluetoothSyncManager.CMD_RESUME -> {
+                    if (isRecording.get() && isPaused.get()) {
+                        resumeRecording(broadcastToBt = false)
+                    }
+                }
+                BluetoothSyncManager.CMD_STOP -> {
+                    if (isRecording.get()) {
+                        val remoteStop = payload?.toLongOrNull()
+                        stopRecording(broadcastToBt = false, remoteStopTime = remoteStop)
+                    }
+                }
+                BluetoothSyncManager.CMD_MOTION -> {
+                    payload?.let { pl ->
+                        val parts = pl.split(":", limit = 2)
+                        val state = parts[0]
+                        val originTime = if (parts.size >= 2) parts[1].toLongOrNull() else null
+                        setMotionState(state, broadcastToBt = false, originTimestamp = originTime)
+                        onRemoteMotionStateChanged?.invoke(state)
+                    }
+                }
+                BluetoothSyncManager.CMD_LABEL -> {
+                    payload?.let { pl ->
+                        val parts = pl.split(":", limit = 2)
+                        val label = parts[0]
+                        val originTime = if (parts.size >= 2) parts[1].toLongOrNull() else null
+                        setLabel(label, broadcastToBt = false, originTimestamp = originTime)
+                        onRemoteLabelChanged?.invoke(label)
+                    }
+                }
+            }
+        }
+
+        bluetoothSyncManager.registerStateListener { _, _ ->
+            updateNotificationBasedOnState()
+        }
+    }
+
+    private fun acquireWakeLock() {
+        if (wakeLock == null) {
+            val pm = getSystemService(Context.POWER_SERVICE) as? PowerManager
+            wakeLock = pm?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "RoadWatch:SyncWakeLock")
+        }
+        if (wakeLock?.isHeld == false) {
+            wakeLock?.acquire(12 * 60 * 60 * 1000L) // 12h max
+        }
+    }
+
+    private fun releaseWakeLock() {
+        try {
+            if (wakeLock?.isHeld == true) {
+                wakeLock?.release()
+            }
+        } catch (e: Exception) {
+            // Ignore
+        }
+    }
+
+    fun syncBluetoothServiceState() {
+        if (bluetoothSyncManager.isSyncEnabled()) {
+            val intent = Intent(this, SensorService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+            acquireWakeLock()
+            updateNotificationBasedOnState()
+        } else {
+            if (!isRecording.get()) {
+                releaseWakeLock()
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+            }
+        }
+    }
+
+    fun startRecording(broadcastToBt: Boolean = true, rendezvousTargetTime: Long? = null) {
+        scheduledStartRunnable?.let { mainHandler.removeCallbacks(it) }
+
+        val isBtConnected = bluetoothSyncManager.isSyncEnabled() &&
+                bluetoothSyncManager.getConnectionState() == BluetoothSyncManager.ConnectionState.CONNECTED
+
+        if (broadcastToBt && isBtConnected) {
+            // Schedule rendezvous start in 500ms so both devices start on the exact same millisecond
+            val leadTimeMs = 500L
+            val now = System.currentTimeMillis()
+            val targetStartLocal = now + leadTimeMs
+
+            bluetoothSyncManager.sendCommand(BluetoothSyncManager.CMD_START, "$leadTimeMs:$targetStartLocal")
+
+            scheduledStartRunnable = Runnable {
+                executeStartRecording(targetStartLocal)
+            }
+            mainHandler.postDelayed(scheduledStartRunnable!!, leadTimeMs)
+            return
+        }
+
+        if (rendezvousTargetTime != null) {
+            val now = System.currentTimeMillis()
+            val delayMs = rendezvousTargetTime - now
+            if (delayMs > 0) {
+                scheduledStartRunnable = Runnable {
+                    executeStartRecording(rendezvousTargetTime)
+                }
+                mainHandler.postDelayed(scheduledStartRunnable!!, delayMs)
+                return
+            } else {
+                executeStartRecording(rendezvousTargetTime)
+                return
+            }
+        }
+
+        executeStartRecording(System.currentTimeMillis())
+    }
+
+    private fun executeStartRecording(startTimeMs: Long) {
+        if (isRecording.get()) return
         buffer.clear()
+        sessionStartTime = startTimeMs
         isRecording.set(true)
         isPaused.set(false)
         sampleCountInWindow = 0
         lastFrequencyCalcTime = 0L
         liveFrequency = 0.0
+        acquireWakeLock()
         registerSensors()
         startSampling()
-        updateNotification("Recording...")
+        updateNotificationBasedOnState()
         onStateChange?.invoke(true, false)
     }
 
-    fun pauseRecording() {
+    fun pauseRecording(broadcastToBt: Boolean = true) {
         isPaused.set(true)
         liveFrequency = 0.0
         sampleCountInWindow = 0
         lastFrequencyCalcTime = 0L
         scheduler?.shutdown()
         scheduler = null
-        updateNotification("Paused")
+        updateNotificationBasedOnState()
         onStateChange?.invoke(true, true)
+
+        if (broadcastToBt && bluetoothSyncManager.isSyncEnabled()) {
+            bluetoothSyncManager.sendCommand(BluetoothSyncManager.CMD_PAUSE)
+        }
     }
 
-    fun resumeRecording() {
+    fun resumeRecording(broadcastToBt: Boolean = true) {
         isPaused.set(false)
         sampleCountInWindow = 0
         lastFrequencyCalcTime = 0L
+        acquireWakeLock()
         startSampling()
-        updateNotification("Recording...")
+        updateNotificationBasedOnState()
         onStateChange?.invoke(true, false)
+
+        if (broadcastToBt && bluetoothSyncManager.isSyncEnabled()) {
+            bluetoothSyncManager.sendCommand(BluetoothSyncManager.CMD_RESUME)
+        }
     }
 
-    fun stopRecording() {
+    fun stopRecording(broadcastToBt: Boolean = true, remoteStopTime: Long? = null) {
+        scheduledStartRunnable?.let { mainHandler.removeCallbacks(it) }
+        val now = System.currentTimeMillis()
+
+        if (broadcastToBt && bluetoothSyncManager.isSyncEnabled()) {
+            bluetoothSyncManager.sendCommand(BluetoothSyncManager.CMD_STOP, now.toString())
+        }
+
         isRecording.set(false)
         isPaused.set(false)
         liveFrequency = 0.0
@@ -169,14 +343,29 @@ class SensorService : Service(), SensorEventListener, LocationListener {
         scheduler = null
         unregisterSensors()
 
+        // If stopped by peer, trim samples recorded during radio transit delay
+        if (remoteStopTime != null) {
+            val localCutoff = bluetoothSyncManager.convertRemoteTimeToLocal(remoteStopTime)
+            val safeCutoff = localCutoff.coerceAtLeast(sessionStartTime)
+            while (buffer.isNotEmpty() && buffer.last().timestamp > safeCutoff) {
+                buffer.removeAt(buffer.size - 1)
+            }
+        }
+
         if (buffer.isNotEmpty()) {
             val file = storageManager.saveSession(buffer.toList())
             onRecordingStopped?.invoke(file)
         }
 
         onStateChange?.invoke(false, false)
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
+
+        if (bluetoothSyncManager.isSyncEnabled()) {
+            updateNotificationBasedOnState()
+        } else {
+            releaseWakeLock()
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        }
     }
 
     fun setHardwareInterval(intervalMs: Int) {
@@ -199,14 +388,65 @@ class SensorService : Service(), SensorEventListener, LocationListener {
         enabledSensors[sensor] = enabled
     }
 
-    fun setLabel(label: String) {
+    fun setLabel(label: String, broadcastToBt: Boolean = true, originTimestamp: Long? = null) {
+        val changed = currentLabel != label
         currentLabel = label
+        val now = System.currentTimeMillis()
+
+        if (changed && broadcastToBt && bluetoothSyncManager.isSyncEnabled()) {
+            bluetoothSyncManager.sendCommand(BluetoothSyncManager.CMD_LABEL, "$label:$now")
+        } else if (originTimestamp != null && isRecording.get()) {
+            // Retroactively update buffer samples captured during transit
+            val localOrigin = bluetoothSyncManager.convertRemoteTimeToLocal(originTimestamp)
+            retroactiveUpdateBufferLabel(label, localOrigin)
+        }
+    }
+
+    private fun retroactiveUpdateBufferLabel(label: String, localCutoffTime: Long) {
+        val now = System.currentTimeMillis()
+        val safeCutoff = localCutoffTime.coerceIn(now - 3000L, now)
+        var updatedCount = 0
+        for (i in buffer.size - 1 downTo 0) {
+            val sample = buffer[i]
+            if (sample.timestamp >= safeCutoff) {
+                sample.label = label
+                updatedCount++
+            } else {
+                break
+            }
+        }
+        Log.d(TAG, "Retroactively updated label to '$label' on $updatedCount samples (cutoff: $safeCutoff)")
     }
 
     fun getLabel(): String = currentLabel
 
-    fun setMotionState(state: String) {
+    fun setMotionState(state: String, broadcastToBt: Boolean = true, originTimestamp: Long? = null) {
+        val changed = currentMotionState != state
         currentMotionState = state
+        val now = System.currentTimeMillis()
+
+        if (changed && broadcastToBt && bluetoothSyncManager.isSyncEnabled()) {
+            bluetoothSyncManager.sendCommand(BluetoothSyncManager.CMD_MOTION, "$state:$now")
+        } else if (originTimestamp != null && isRecording.get()) {
+            val localOrigin = bluetoothSyncManager.convertRemoteTimeToLocal(originTimestamp)
+            retroactiveUpdateBufferMotionState(state, localOrigin)
+        }
+    }
+
+    private fun retroactiveUpdateBufferMotionState(state: String, localCutoffTime: Long) {
+        val now = System.currentTimeMillis()
+        val safeCutoff = localCutoffTime.coerceIn(now - 3000L, now)
+        var updatedCount = 0
+        for (i in buffer.size - 1 downTo 0) {
+            val sample = buffer[i]
+            if (sample.timestamp >= safeCutoff) {
+                sample.motionState = state
+                updatedCount++
+            } else {
+                break
+            }
+        }
+        Log.d(TAG, "Retroactively updated motion state to '$state' on $updatedCount samples")
     }
 
     fun getMotionState(): String = currentMotionState
@@ -364,7 +604,8 @@ class SensorService : Service(), SensorEventListener, LocationListener {
                     rotZ = if (isRotEnabled) latestRotationVector[2] else 0f,
                     rotScalar = if (isRotEnabled) latestRotationVector[3] else 0f,
                     label = currentLabel,
-                    motionState = currentMotionState
+                    motionState = currentMotionState,
+                    elapsedMs = Math.max(0L, now - sessionStartTime)
                 )
                 buffer.add(data)
                 onDataUpdate?.invoke(data)
@@ -414,7 +655,8 @@ class SensorService : Service(), SensorEventListener, LocationListener {
             rotZ = if (isRotEnabled) latestRotationVector[2] else 0f,
             rotScalar = if (isRotEnabled) latestRotationVector[3] else 0f,
             label = currentLabel,
-            motionState = currentMotionState
+            motionState = currentMotionState,
+            elapsedMs = if (sessionStartTime > 0L) Math.max(0L, now - sessionStartTime) else 0L
         )
     }
 
@@ -506,11 +748,34 @@ class SensorService : Service(), SensorEventListener, LocationListener {
 
     private fun updateNotification(text: String) {
         val manager = getSystemService(NotificationManager::class.java)
-        manager.notify(NOTIFICATION_ID, createNotification(text))
+        manager?.notify(NOTIFICATION_ID, createNotification(text))
     }
+
+    private fun updateNotificationBasedOnState() {
+        val text = when {
+            isRecording.get() -> {
+                if (isPaused.get()) "Recording Paused" else "Recording Active (${liveFrequency.format(1)} Hz)"
+            }
+            bluetoothSyncManager.isSyncEnabled() -> {
+                val state = bluetoothSyncManager.getConnectionState()
+                val peer = bluetoothSyncManager.getConnectedDeviceName()
+                when (state) {
+                    BluetoothSyncManager.ConnectionState.CONNECTED -> "BT Sync Connected: ${peer ?: "Peer"}"
+                    BluetoothSyncManager.ConnectionState.CONNECTING -> "BT Sync Connecting to ${peer ?: "Peer"}..."
+                    BluetoothSyncManager.ConnectionState.LISTENING -> "BT Sync Active (Ready for peer)"
+                    else -> "BT Sync Ready"
+                }
+            }
+            else -> "Standby"
+        }
+        updateNotification(text)
+    }
+
+    private fun Double.format(digits: Int) = "%.${digits}f".format(this)
 
     override fun onDestroy() {
         super.onDestroy()
+        releaseWakeLock()
         unregisterSensors()
         try {
             locationManager.removeUpdates(this)
@@ -521,6 +786,7 @@ class SensorService : Service(), SensorEventListener, LocationListener {
     }
 
     companion object {
+        private const val TAG = "SensorService"
         private const val CHANNEL_ID = "sensor_recording_channel"
         private const val NOTIFICATION_ID = 1
     }

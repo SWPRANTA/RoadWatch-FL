@@ -35,6 +35,292 @@
             android:orientation="vertical"
             android:paddingBottom="24dp">
 
+            <!-- Card 0: DEVICE IDENTIFIER -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardBackgroundColor="@color/surface"
+                app:cardCornerRadius="14dp"
+                app:strokeColor="@color/surface_border"
+                app:strokeWidth="1dp"
+                app:cardElevation="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="DEVICE IDENTIFIER"
+                        android:textColor="@color/primary"
+                        android:textSize="12sp"
+                        android:fontFamily="@font/inter"
+                        android:textStyle="bold"
+                        android:letterSpacing="0.08"
+                        android:layout_marginBottom="4dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Prefix prepended to saved sensor recording filenames (e.g., Pixel_7, Car_A)."
+                        android:textColor="@color/on_surface_muted"
+                        android:textSize="11.5sp"
+                        android:fontFamily="@font/inter"
+                        android:layout_marginBottom="14dp" />
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/til_device_name"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="Device Name"
+                        app:boxStrokeColor="@color/primary"
+                        app:hintTextColor="@color/primary"
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/et_device_name"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="text"
+                            android:textColor="@color/on_surface"
+                            android:fontFamily="@font/jetbrains_mono"
+                            android:textSize="14sp" />
+
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <TextView
+                        android:id="@+id/tv_preview_filename"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Preview: recording_all_sensors_....csv"
+                        android:textColor="@color/on_surface_muted"
+                        android:textSize="11sp"
+                        android:fontFamily="@font/jetbrains_mono"
+                        android:layout_marginTop="8dp" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Card: BLUETOOTH MULTI-DEVICE SYNC -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_bluetooth_sync"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardBackgroundColor="@color/surface"
+                app:cardCornerRadius="14dp"
+                app:strokeColor="@color/surface_border"
+                app:strokeWidth="1dp"
+                app:cardElevation="0dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="BLUETOOTH MULTI-DEVICE SYNC"
+                                android:textColor="@color/primary"
+                                android:textSize="12sp"
+                                android:fontFamily="@font/inter"
+                                android:textStyle="bold"
+                                android:letterSpacing="0.08"
+                                android:layout_marginBottom="2dp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Sync Start/Pause/Stop across handheld and pocket devices."
+                                android:textColor="@color/on_surface_muted"
+                                android:textSize="11.5sp"
+                                android:fontFamily="@font/inter" />
+
+                        </LinearLayout>
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switch_bt_sync"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp" />
+
+                    </LinearLayout>
+
+                    <!-- Expanded container shown when sync is enabled -->
+                    <LinearLayout
+                        android:id="@+id/layout_bt_sync_details"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:background="@color/surface_border"
+                            android:layout_marginVertical="12dp" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginBottom="12dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="STATUS:"
+                                android:textColor="@color/on_surface_muted"
+                                android:textSize="11sp"
+                                android:fontFamily="@font/inter"
+                                android:textStyle="bold"
+                                android:letterSpacing="0.06"
+                                android:layout_marginEnd="8dp" />
+
+                            <TextView
+                                android:id="@+id/tv_bt_status"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="Disconnected"
+                                android:textColor="@color/on_surface_variant"
+                                android:textSize="12sp"
+                                android:fontFamily="@font/jetbrains_mono" />
+
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btn_bt_connect"
+                                android:layout_width="0dp"
+                                android:layout_height="44dp"
+                                android:layout_weight="1"
+                                android:text="CONNECT PEER"
+                                app:backgroundTint="@color/primary"
+                                android:textColor="@color/on_primary"
+                                android:textSize="12sp"
+                                android:fontFamily="@font/inter"
+                                android:textStyle="bold"
+                                app:cornerRadius="8dp"
+                                android:layout_marginEnd="6dp" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btn_bt_disconnect"
+                                android:layout_width="0dp"
+                                android:layout_height="44dp"
+                                android:layout_weight="1"
+                                android:text="DISCONNECT"
+                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                android:textColor="@color/error"
+                                app:strokeColor="@color/error"
+                                android:textSize="12sp"
+                                android:fontFamily="@font/inter"
+                                android:textStyle="bold"
+                                app:cornerRadius="8dp"
+                                android:layout_marginStart="6dp"
+                                android:visibility="gone" />
+
+                        </LinearLayout>
+
+                        <View
+                            android:id="@+id/divider_bt_latency"
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:background="@color/surface_border"
+                            android:layout_marginVertical="12dp"
+                            android:visibility="gone" />
+
+                        <LinearLayout
+                            android:id="@+id/layout_bt_latency"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:visibility="gone">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="BLUETOOTH LATENCY &amp; CLOCK BENCHMARK"
+                                android:textColor="@color/tertiary"
+                                android:textSize="11.5sp"
+                                android:fontFamily="@font/inter"
+                                android:textStyle="bold"
+                                android:letterSpacing="0.08"
+                                android:layout_marginBottom="4dp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Measure real-time RFCOMM round-trip latency, trigger delay, and clock offset between devices."
+                                android:textColor="@color/on_surface_muted"
+                                android:textSize="11sp"
+                                android:fontFamily="@font/inter"
+                                android:layout_marginBottom="10dp" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btn_test_bt_latency"
+                                android:layout_width="match_parent"
+                                android:layout_height="44dp"
+                                android:text="TEST BLUETOOTH LATENCY"
+                                app:backgroundTint="@color/tertiary"
+                                android:textColor="@color/on_tertiary"
+                                android:textSize="12sp"
+                                android:fontFamily="@font/inter"
+                                android:textStyle="bold"
+                                app:cornerRadius="8dp" />
+
+                            <TextView
+                                android:id="@+id/tv_bt_latency_result"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text=""
+                                android:textColor="@color/tertiary"
+                                android:textSize="12sp"
+                                android:fontFamily="@font/jetbrains_mono"
+                                android:lineSpacingExtra="3dp"
+                                android:layout_marginTop="8dp" />
+
+                        </LinearLayout>
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Tip: Pair devices in Android Bluetooth settings first. Keep app open on both phones (screen can be turned off)."
+                            android:textColor="@color/on_surface_muted"
+                            android:textSize="11sp"
+                            android:fontFamily="@font/inter"
+                            android:layout_marginTop="10dp" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- Card 1: HARDWARE SENSOR INTERVAL -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"

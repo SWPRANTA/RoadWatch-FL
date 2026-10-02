@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  A high-frequency Android sensor recording and road-condition telemetry suite designed for vehicular pavement monitoring, roughness index profiling, and federated/centralized machine learning dataset collection.
+  A high-frequency Android sensor recording and road-condition telemetry suite designed for vehicular pavement monitoring, roughness index profiling (IRI), multi-device fleet synchronization, and federated/centralized machine learning dataset collection.
 </p>
 
 <p align="center">
@@ -13,6 +13,7 @@
   <img alt="Kotlin" src="https://img.shields.io/badge/NativeApp-Kotlin%201.9-7F52FF?style=flat-square&logo=kotlin" />
   <img alt="React Native" src="https://img.shields.io/badge/SensorApp-React%20Native%200.81-61DAFB?style=flat-square&logo=react" />
   <img alt="Expo" src="https://img.shields.io/badge/Expo-SDK%20~54-000020?style=flat-square&logo=expo" />
+  <img alt="Bluetooth Sync" src="https://img.shields.io/badge/Sync-Bluetooth%20Mesh%20SPP-blue?style=flat-square&logo=bluetooth" />
   <img alt="Material 3" src="https://img.shields.io/badge/UI-Material%20Design%203-blue?style=flat-square" />
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript" />
   <img alt="License" src="https://img.shields.io/badge/License-Proprietary%20%2F%20Research-red?style=flat-square" />
@@ -24,7 +25,9 @@
 
 - [Overview](#-overview)
 - [Comparison Matrix: NativeApp vs SensorApp](#-comparison-matrix-nativeapp-vs-sensorapp)
+- [Why NativeApp Outperforms SensorApp](#-why-nativeapp-outperforms-sensorapp)
 - [Key Features](#-key-features)
+- [Bluetooth Multi-Device Synchronization (NativeApp)](#-bluetooth-multi-device-synchronization-nativeapp)
 - [Sensors & Telemetry Specifications](#-sensors--telemetry-specifications)
   - [Hardware & Virtual Sensor Channels](#hardware--virtual-sensor-channels)
   - [Geospatial & GPS Precision](#geospatial--gps-precision)
@@ -33,9 +36,9 @@
   - [Built-in Anomaly Classes](#built-in-anomaly-classes)
   - [Custom Dynamic Labels](#custom-dynamic-labels)
 - [CSV Output Format & Schemas](#-csv-output-format--schemas)
-  - [NativeApp Schema (32 Columns)](#nativeapp-schema-32-columns)
+  - [NativeApp Schema (33 Columns)](#nativeapp-schema-33-columns)
   - [SensorApp Schema (21 Columns)](#sensorapp-schema-21-columns)
-  - [Data Recording Rules](#data-recording-rules)
+  - [Data Recording Rules & Device Prefixing](#data-recording-rules--device-prefixing)
 - [Project Structure](#-project-structure)
 - [Getting Started — NativeApp (Kotlin)](#-getting-started--nativeapp-kotlin)
   - [Prerequisites](#prerequisites-nativeapp)
@@ -50,7 +53,7 @@
   - [NativeApp Direct Hardware Pipeline](#nativeapp-direct-hardware-pipeline)
   - [SensorApp Bridge Pipeline](#sensorapp-bridge-pipeline)
   - [Zero-Data-Loss Pause & Resume](#zero-data-loss-pause--resume)
-  - [Foreground Service Execution](#foreground-service-execution)
+  - [Foreground Service & WakeLock Execution](#foreground-service--wakelock-execution)
 - [Android Permissions](#-android-permissions)
 - [Design Aesthetics & Theme](#-design-aesthetics--theme)
 
@@ -58,52 +61,116 @@
 
 ## 📋 Overview
 
-**RoadWatch FL** provides two independent mobile client implementations tailored for high-fidelity road surface data acquisition:
+**RoadWatch FL** provides two distinct mobile client architectures designed for road-surface telemetry, pavement quality auditing, and vehicular dynamic modeling:
 
 1. **`NativeApp` (Kotlin / Android Jetpack / Material 3)**:
-   A native Android application built for direct hardware sensor access via `SensorManager` and a robust Android `ForegroundService`. It captures up to **11 sensor streams** at high frequencies (**100 Hz to 400+ Hz**), supports vehicular motion tagging (`moving` vs `stopped`), provides live sampling frequency telemetry, renders an in-app interactive CSV table viewer, and writes comprehensive **32-column CSV** datasets.
+   A high-performance native Android application engineered for scientific and research-grade data acquisition. It connects directly to the underlying Linux/Android Hardware Abstraction Layer (`SensorManager`), supports ultra-high sampling rates (**100 Hz to 400+ Hz**), records **11 sensor streams into 33-column CSV files**, maintains uninterrupted logging via an Android `ForegroundService` with `WakeLock`, synchronizes multiple recording devices wirelessly over Bluetooth, provides on-device interactive tabular inspection, and isolates vehicular motion states (`moving` vs `stopped`).
 
 2. **`SensorApp` (React Native / Expo SDK 54 / TypeScript)**:
-   A lightweight, rapid-iteration cross-platform implementation using `expo-sensors` and `React Native Paper`. It records **8 core sensor channels** at up to **50 Hz** into a standardized **21-column CSV** dataset.
+   A rapid-prototyping cross-platform implementation using `expo-sensors` and `React Native Paper`. It records **8 core sensor channels** at up to **50 Hz** into a standard **21-column CSV** dataset.
 
 ---
 
 ## ⚖️ Comparison Matrix: NativeApp vs SensorApp
 
-| Capability / Attribute | `NativeApp` (Native Android) | `SensorApp` (React Native) |
+| Capability / Feature | `NativeApp` (Native Android) | `SensorApp` (React Native) |
 |---|---|---|
-| **Primary Language** | Kotlin 1.9 (Java 17 target) | TypeScript 5.9 (JavaScript / React 19) |
+| **Primary Language** | Kotlin 1.9 (Java 17 bytecode) | TypeScript 5.9 (JavaScript / React 19) |
 | **Framework & UI** | Native Android SDK (API 26–34), Material Design 3, Jetpack Navigation | React Native 0.81, Expo SDK ~54, React Native Paper (MD3) |
-| **Sensor Access Method** | Direct `android.hardware.SensorManager` listeners | `expo-sensors` via React Native bridge |
+| **Sensor Architecture** | Direct Linux HAL / `SensorManager` event listeners | `expo-sensors` bridging over JS event loop |
 | **Active Sensor Modules** | **11 Modules** (Incl. Orientation, Gravity, 4D Rotation Vector) | **8 Modules** (Core inertial, environmental, location) |
-| **Maximum Sampling Rate** | **100 Hz – 400+ Hz** (Hardware & sensor chip bound) | **~50 Hz** (JavaScript event loop & bridge bound) |
-| **Background Recording** | **Yes** — Dedicated `ForegroundService` with notification & wake-lock | **No** — Foreground execution while screen remains active |
+| **Max Sampling Rate** | **100 Hz – 400+ Hz** (Hardware & sensor chip bound) | **~50 Hz** (JavaScript single-thread & bridge bound) |
+| **Background Execution** | **Yes** — Dedicated `ForegroundService` (`location` + `connectedDevice`) with `WakeLock` | **No** — Pauses shortly after screen turns off or app is minimized |
+| **Multi-Device Sync** | **Yes** — Real-time Bluetooth RFCOMM mesh sync with clock offset calibration | No (Standalone single-device recording only) |
 | **Vehicle Motion State** | **Yes** — Dedicated `motion_state` column (`moving` / `stopped`) | No (Implicit from GPS speed / inertial values) |
-| **Anomaly Labeling** | Built-in Urban & Rural chips + **Persistent Custom Labels** (via `SharedPreferences`) | Built-in Urban & Rural chips + Session-based custom labels |
-| **Live Telemetry Frequency** | **Yes** — Real-time computed sampling Hz + sample counter card | Hardware & software interval configuration presets |
-| **CSV Dataset Columns** | **32 Columns** (Full spatial attitude, gravity vector, quaternion, motion state) | **21 Columns** (Core inertial, environmental, GPS, label) |
-| **In-App Data Preview** | **Interactive Table Viewer Dialog** (Full tabular matrix viewer) | Raw text preview snippet (First 10 lines) |
-| **Export & Sharing** | Native Android Intent System (`ACTION_SEND` chooser) | `expo-sharing` (native file sharing sheet) |
+| **Session Elapsed Time** | **Yes** — Dedicated `elapsed_time_ms` column (0 to end) | No (Requires subtracting first epoch timestamp) |
+| **Anomaly Labeling** | Built-in Urban/Rural + **Persistent Custom Labels** (`SharedPreferences`) | Built-in Urban/Rural + Session-only custom labels |
+| **Live Telemetry Frequency** | **Yes** — Real-time computed sampling Hz + sample counter card | Static interval selection presets |
+| **CSV Dataset Columns** | **33 Columns** (Spatial attitude, gravity, quaternion, motion state, elapsed time) | **21 Columns** (Core inertial, environmental, GPS, label) |
+| **In-App Data Preview** | **Interactive Table Viewer Dialog** (Scrollable matrix with headers) | Raw text preview snippet (First 10 lines) |
+| **File Management** | **In-App File Renaming** + Device Prefixing (`<device>_recording_...`) | Fixed timestamp naming only |
+| **Secure File Sharing** | Android `FileProvider` (`ACTION_SEND` chooser) | `expo-sharing` (native file sharing sheet) |
 | **Build System** | Pure Gradle Wrapper (`./gradlew assembleDebug` / `assembleRelease`) | Expo CLI + local Gradle bundling (`npm run build:*`) |
+
+---
+
+## 🏆 Why NativeApp Outperforms SensorApp
+
+While `SensorApp` is ideal for rapid prototyping and quick testing on physical phones via Expo Go, **`NativeApp` is fundamentally superior for real-world vehicular telemetry, pavement engineering, and machine learning research**. Here is why:
+
+### 1. True High-Frequency Hardware Sampling (100–400+ Hz vs ~50 Hz)
+- **The React Native Bridge Bottleneck**: In `SensorApp`, sensor updates generated in native C++ drivers must be serialized into JSON, dispatched across the React Native bridge/JSI, and handled on JavaScript's single thread. Pushing beyond ~50 Hz causes event backlog, severe garbage collection pauses, and non-deterministic timestamp jitter.
+- **Direct HAL Interrupts in NativeApp**: `NativeApp` hooks directly into the Android Linux kernel HAL via `SensorEventListener`. An independent worker thread scheduled by `ScheduledExecutorService` snapshots all 11 sensor registers simultaneously with sub-millisecond precision. For International Roughness Index (IRI) calculation and pothole edge shockwave detection, high frequency is mandatory.
+
+### 2. Bulletproof Background Recording (`ForegroundService` + `WakeLock`)
+- **The Screen-Off Problem**: During road survey drives lasting 30–120 minutes, surveyors cannot keep phone screens permanently active at full brightness (causes extreme battery drain and thermal throttling under direct sunlight). In `SensorApp`, as soon as the screen sleeps or navigation apps take the foreground, Android suspends the JS runtime, **silently terminating data collection**.
+- **Uninterrupted Service in NativeApp**: `NativeApp` runs as an official Android `ForegroundService` with `location` and `connectedDevice` capabilities, accompanied by a low-priority persistent notification and a CPU `WakeLock`. It records continuously regardless of screen locks, incoming phone calls, or app switching.
+
+### 3. Comprehensive 11-Channel Telemetry (33 Columns vs 21 Columns)
+`NativeApp` captures 3 crucial vehicular dynamics channels that `SensorApp` completely lacks:
+1. **True 3D Orientation (Azimuth, Pitch, Roll in degrees)**: Derived directly from the device rotation matrix. Detects road gradient/incline (pitch) and road superelevation / banking angle (roll).
+2. **Isolated Gravity Vector (`grav_x`, `grav_y`, `grav_z`)**: Separates static gravitational acceleration from dynamic road vibration shocks, essential for coordinate normalization.
+3. **4D Rotation Vector Quaternion (`rot_x`, `rot_y`, `rot_z`, `rot_scalar`)**: Drift-free attitude quaternion ($x, y, z, w$) for spatial machine learning models.
+4. **Session Elapsed Time (`elapsed_time_ms`)**: Direct relative session duration in milliseconds from $t=0$, eliminating timestamp math during model training.
+
+### 4. Wireless Multi-Device Bluetooth Synchronization
+Modern road research often requires placing multiple phones in a single vehicle (e.g., dashboard, floorboard, roof mount, rear axle) or across a convoy of survey vehicles.
+- `SensorApp` has no inter-device communication.
+- `NativeApp` integrates a full **Bluetooth Sync Mesh**: one phone acts as Master/Leader, synchronizing Start, Pause, Resume, Stop, Anomaly Labels, and Motion States across all connected phones with microsecond clock offset calibration and latency compensation.
+
+### 5. Separation of Vehicle Motion States (`moving` vs `stopped`)
+Vibration logs recorded while idling at traffic lights, stop signs, or railroad crossings corrupt roughness profiling algorithms.
+- In `SensorApp`, surveyors must manually post-process GPS speed to filter stopped states.
+- `NativeApp` features a docked, single-tap `MOVING` / `STOPPED` toggle, explicitly stamped into the `motion_state` column.
+
+### 6. Persistent Annotation & On-Device Validation
+- In `NativeApp`, custom labels created via `+ ADD LABEL` are permanently saved to `SharedPreferences` across app restarts.
+- Researchers can immediately inspect captured CSV data inside the vehicle using the built-in `TableViewerDialog` (scrollable table matrix with styled headers) rather than waiting to transfer files to a computer.
 
 ---
 
 ## ✨ Key Features
 
-- **High-Frequency Multi-Sensor Recording**: Synchronously samples hardware inertial measurement units (IMUs), orientation sensors, barometric pressure, environmental lux, pedometer step counters, and multi-GNSS location coordinates.
-- **Dedicated Vehicle Motion State Tagging (`NativeApp`)**: Surveyors can seamlessly toggle between `MOVING` (default) and `STOPPED` states via a pinned bottom bar. The state is recorded per sample in the `motion_state` CSV column.
+- **High-Frequency Multi-Sensor Recording**: Synchronously samples hardware IMUs, spatial orientation, gravity, rotation quaternions, barometric pressure, environmental lux, pedometer steps, and multi-GNSS location coordinates.
+- **Bluetooth Multi-Device Fleet Sync (`NativeApp`)**: Wirelessly connect multiple smartphones over Bluetooth SPP. Coordinate synchronized recording triggers, clock offset calibration, and shared annotation tagging across all devices.
+- **Dedicated Vehicle Motion State Tagging (`NativeApp`)**: Seamlessly toggle between `MOVING` (default) and `STOPPED` states via a pinned bottom bar. Stamped per sample into `motion_state`.
 - **Dynamic Anomaly Ground-Truth Annotation**:
   - Pre-configured categories for **Urban** and **Rural** road distress types.
   - Interactive **`+ ADD LABEL`** dialog allowing surveyors to create custom anomaly tags on the fly.
   - Custom labels persist across app sessions in `NativeApp` via `SharedPreferences`.
   - Tapping an active label toggles it back to `normal`.
-- **Zero-Loss Pause & Resume**: Pause mid-session when encountering traffic lights or rail crossings without dropping captured buffer records; resume to continuously append to the active recording session.
-- **Individual Sensor Channel Toggles**: Selectively enable or disable individual sensors before or during a capture session. Disabled channels cleanly write `0` (or `null` for GPS).
-- **Background Foreground Service (`NativeApp`)**: Uninterrupted data capture even when the phone screen dims or when navigating between apps, backed by a persistent low-priority system notification.
-- **In-App CSV Table Viewer (`NativeApp`)**: Inspect completed CSV datasets in a structured, horizontally and vertically scrolling tabular grid with distinct styled headers and alternating row shading.
+- **Zero-Loss Pause & Resume**: Pause mid-session when encountering traffic lights or obstacles without dropping captured buffer records; resume to continuously append to the active recording session.
+- **Device Identifier Prefixing (`NativeApp`)**: Configure custom device labels (e.g. `RoofMount`, `Dashboard`, `Axle1`) in Settings; CSV files are automatically prefixed (`<device>_recording_...`) for instant multi-phone survey organization.
+- **In-App File Renaming & Table Viewer (`NativeApp`)**: Rename recording files on-device and inspect captured CSV records in an interactive, scrollable tabular grid.
+- **Secure File Sharing via FileProvider (`NativeApp`)**: Share CSV files via Google Drive, Gmail, Slack, Bluetooth, or USB using standard Android Content URIs.
 - **Live Empirical Frequency Monitor (`NativeApp`)**: Real-time display showing actual hardware acquisition rate (Hz), target software sampling frequency (Hz), total sample count, and active label.
-- **Recordings Library & Instant Share**: Manage, preview, share (via Google Drive, Gmail, Slack, Bluetooth), and delete stored recordings directly from the library tab.
-- **Cyber-Slate Dark Mode**: Ultra-modern, high-contrast dark theme optimized for low power consumption on OLED displays during outdoor field collection.
+
+---
+
+## 📡 Bluetooth Multi-Device Synchronization (NativeApp)
+
+`NativeApp` includes a full-featured, zero-cloud peer-to-peer synchronization engine based on Bluetooth Classic RFCOMM (`BluetoothSyncManager`):
+
+```
+       ┌────────────────────────┐
+       │   Master Smartphone    │
+       │ (Dashboard Controller) │
+       └───────────┬────────────┘
+                   │ Bluetooth RFCOMM (SPP)
+         ┌─────────┴─────────┐
+         ▼                   ▼
+┌──────────────────┐ ┌──────────────────┐
+│  Peer Phone #1   │ │  Peer Phone #2   │
+│  (Floor / Axle)  │ │  (Roof Mount)    │
+└──────────────────┘ └──────────────────┘
+```
+
+### Synchronization Capabilities:
+1. **Clock Calibration Protocol**: Implements an NTP-style ping-pong exchange measuring Round-Trip Time (RTT) and calculating precise clock offsets between devices down to sub-millisecond precision.
+2. **Scheduled Start**: When recording starts, the master calculates an epoch start time ($T_{\text{target}} = \text{now} + \Delta$) ensuring all phones begin sampling at the **exact same millisecond**.
+3. **Synchronized Controls**: Pausing, resuming, or stopping on any device triggers an instant coordinated action across all connected peers.
+4. **Synchronized Anomaly Tagging**: Tagging a pothole on the master phone immediately broadcasts the label to all phones; transit delays are compensated by **retroactively updating** buffer samples captured during radio transmission.
+5. **Multi-Peer Mesh / Star Topology**: Supports connecting multiple phones simultaneously without requiring cellular data or Wi-Fi routers.
 
 ---
 
@@ -166,10 +233,10 @@ Need to survey specific features (e.g. *Rumble Strip*, *Expansion Joint*, *Rail 
 
 ## 📄 CSV Output Format & Schemas
 
-### NativeApp Schema (32 Columns)
+### NativeApp Schema (33 Columns)
 
 ```csv
-timestamp,acc_x,acc_y,acc_z,gyro_x,gyro_y,gyro_z,mag_x,mag_y,mag_z,pressure,illuminance,dm_alpha,dm_beta,dm_gamma,step_count,latitude,longitude,speed,altitude,orient_azimuth,orient_pitch,orient_roll,grav_x,grav_y,grav_z,rot_x,rot_y,rot_z,rot_scalar,label,motion_state
+timestamp,elapsed_time_ms,acc_x,acc_y,acc_z,gyro_x,gyro_y,gyro_z,mag_x,mag_y,mag_z,pressure,illuminance,dm_alpha,dm_beta,dm_gamma,step_count,latitude,longitude,speed,altitude,orient_azimuth,orient_pitch,orient_roll,grav_x,grav_y,grav_z,rot_x,rot_y,rot_z,rot_scalar,label,motion_state
 ```
 
 #### Field Specifications:
@@ -177,21 +244,22 @@ timestamp,acc_x,acc_y,acc_z,gyro_x,gyro_y,gyro_z,mag_x,mag_y,mag_z,pressure,illu
 | # | Column Name | Type | Unit | Description |
 |:---:|---|:---:|:---:|---|
 | 1 | `timestamp` | Long | ms | Unix epoch timestamp in milliseconds |
-| 2–4 | `acc_x`, `acc_y`, `acc_z` | Float | $\text{m/s}^2$ | 3-axis accelerometer acceleration |
-| 5–7 | `gyro_x`, `gyro_y`, `gyro_z` | Float | $\text{rad/s}$ | 3-axis gyroscope angular rate |
-| 8–10 | `mag_x`, `mag_y`, `mag_z` | Float | $\mu\text{T}$ | 3-axis geomagnetic field strength |
-| 11 | `pressure` | Float | $\text{hPa}$ | Atmospheric pressure |
-| 12 | `illuminance` | Float | $\text{lx}$ | Ambient photometric illuminance |
-| 13–15 | `dm_alpha`, `dm_beta`, `dm_gamma` | Float | rad | Device attitude rotation angles |
-| 16 | `step_count` | Int | count | Cumulative pedometer steps since boot |
-| 17–18 | `latitude`, `longitude` | Double | deg | GNSS coordinates (64-bit precision) |
-| 19 | `speed` | Float | $\text{m/s}$ | Vehicle ground speed |
-| 20 | `altitude` | Double | m | Altitude above reference ellipsoid |
-| 21–23 | `orient_azimuth`, `orient_pitch`, `orient_roll` | Float | deg | Compass heading ($0\text{--}360^\circ$), Pitch ($-180\text{--}180^\circ$), Roll ($-90\text{--}90^\circ$) |
-| 24–26 | `grav_x`, `grav_y`, `grav_z` | Float | $\text{m/s}^2$ | Directional gravity vector components |
-| 27–30 | `rot_x`, `rot_y`, `rot_z`, `rot_scalar` | Float | — | Fused unit quaternion ($x, y, z, w$) |
-| 31 | `label` | String | — | Active road condition tag (`normal`, `Pothole`, etc.) |
-| 32 | `motion_state` | String | — | Active vehicle state (`moving` or `stopped`) |
+| 2 | `elapsed_time_ms` | Long | ms | Relative elapsed time since recording session started |
+| 3–5 | `acc_x`, `acc_y`, `acc_z` | Float | $\text{m/s}^2$ | 3-axis accelerometer acceleration |
+| 6–8 | `gyro_x`, `gyro_y`, `gyro_z` | Float | $\text{rad/s}$ | 3-axis gyroscope angular velocity |
+| 9–11 | `mag_x`, `mag_y`, `mag_z` | Float | $\mu\text{T}$ | 3-axis geomagnetic field strength |
+| 12 | `pressure` | Float | $\text{hPa}$ | Atmospheric air pressure |
+| 13 | `illuminance` | Float | $\text{lx}$ | Ambient photometric illuminance |
+| 14–16 | `dm_alpha`, `dm_beta`, `dm_gamma` | Float | rad | Device attitude rotation angles |
+| 17 | `step_count` | Int | count | Cumulative pedometer steps since boot |
+| 18–19 | `latitude`, `longitude` | Double | deg | GNSS coordinates (64-bit precision) |
+| 20 | `speed` | Float | $\text{m/s}$ | Vehicle ground speed |
+| 21 | `altitude` | Double | m | Altitude above reference ellipsoid |
+| 22–24 | `orient_azimuth`, `orient_pitch`, `orient_roll` | Float | deg | Compass heading ($0\text{--}360^\circ$), Pitch ($-180\text{--}180^\circ$), Roll ($-90\text{--}90^\circ$) |
+| 25–27 | `grav_x`, `grav_y`, `grav_z` | Float | $\text{m/s}^2$ | Directional gravity vector components |
+| 28–31 | `rot_x`, `rot_y`, `rot_z`, `rot_scalar` | Float | — | Fused unit quaternion ($x, y, z, w$) |
+| 32 | `label` | String | — | Active road condition tag (`normal`, `Pothole`, etc.) |
+| 33 | `motion_state` | String | — | Active vehicle state (`moving` or `stopped`) |
 
 ---
 
@@ -218,13 +286,16 @@ timestamp,acc_x,acc_y,acc_z,gyro_x,gyro_y,gyro_z,mag_x,mag_y,mag_z,pressure,illu
 
 ---
 
-### Data Recording Rules
+### Data Recording Rules & Device Prefixing
 
-1. **Disabled Sensors**: If a sensor is toggled off in the UI, its corresponding numerical fields are cleanly logged as `0`.
+1. **Disabled Sensors**: If a sensor is toggled off in the UI, its numerical fields are logged as `0`.
 2. **Missing Location**: If Location is disabled or satellites are acquiring, coordinates and altitude output empty values (`""` / `null`).
-3. **File Naming Convention**: Stored as `recording_all_sensors_<epoch_timestamp>.csv`.
+3. **File Naming & Device Prefixing (`NativeApp`)**:
+   - Configurable in Settings -> **Device Name** (e.g. `RoofPhone`).
+   - Generates filename: `[DeviceName_]recording_all_sensors_<epoch_timestamp>.csv`.
+   - Files can be renamed anytime inside the Recordings tab.
 4. **Storage Directories**:
-   - `NativeApp`: `context.getExternalFilesDir(null)/recordings/` (Public app sandbox, readable without root).
+   - `NativeApp`: `context.getExternalFilesDir(null)/recordings/` (Public app sandbox, directly accessible over USB).
    - `SensorApp`: `FileSystem.documentDirectory + "recordings/"`.
 
 ---
@@ -245,29 +316,33 @@ RoadWatch-FL/
 │       ├── build.gradle.kts            # App module build script (API 34, Java 17)
 │       ├── proguard-rules.pro          # Release optimization rules
 │       └── src/main/
-│           ├── AndroidManifest.xml     # Permissions, MainActivity, SensorService
+│           ├── AndroidManifest.xml     # Permissions, Bluetooth, Service, FileProvider
 │           ├── java/com/roadwatch/fl/
 │           │   ├── MainActivity.kt     # App host, bottom nav binding, service connection
 │           │   ├── model/
-│           │   │   └── SensorData.kt   # Immutable data class with 32 fields
+│           │   │   └── SensorData.kt   # Immutable data class with 33 telemetry fields
 │           │   ├── service/
-│           │   │   └── SensorService.kt # Foreground service, sensor loops, GPS latching
+│           │   │   └── SensorService.kt # Foreground service, sensor loops, WakeLock, GPS
+│           │   ├── bluetooth/
+│           │   │   └── BluetoothSyncManager.kt # Multi-device mesh sync & clock calibration
 │           │   ├── fragment/
 │           │   │   ├── HomeFragment.kt        # Telemetry monitor, controls, motion state
-│           │   │   ├── RecordingsFragment.kt  # Recordings list, share, table view trigger
-│           │   │   ├── SettingsFragment.kt    # Sampling interval sliders & empirical test
+│           │   │   ├── RecordingsFragment.kt  # Recordings list, rename, share, table trigger
+│           │   │   ├── SettingsFragment.kt    # Sampling sliders, device name, BT sync setup
 │           │   │   ├── SensorAdapter.kt       # RecyclerView adapter for 11 sensor cards
 │           │   │   └── RecordingAdapter.kt    # RecyclerView adapter for CSV records
 │           │   ├── dialog/
 │           │   │   └── TableViewerDialog.kt   # Scrollable matrix viewer for CSV inspection
 │           │   └── util/
-│           │       └── StorageManager.kt      # High-performance CSV writer & file manager
+│           │       ├── StorageManager.kt      # CSV writer, renaming, device prefixing
+│           │       └── FileShareUtils.kt      # Secure Android FileProvider sharing
 │           └── res/
 │               ├── drawable/           # 11 sensor vector icons, backgrounds, badges
 │               ├── font/               # JetBrains Mono (telemetry) & Inter typography
-│               ├── layout/             # Modern MD3 XML layouts
+│               ├── layout/             # Modern MD3 XML layouts & dialogs
 │               ├── menu/               # Bottom navigation item definitions
 │               ├── navigation/         # Jetpack Navigation Graph
+│               ├── xml/file_paths.xml  # FileProvider path definitions
 │               └── values/             # Colors (Cyber-Slate palette), strings, styles
 │
 └── SensorApp/                          # Cross-Platform React Native (Expo) App
@@ -330,7 +405,7 @@ cd NativeApp
 | **Debug APK** | `NativeApp/app/build/outputs/apk/debug/app-debug.apk` |
 | **Release APK** | `NativeApp/app/build/outputs/apk/release/app-release.apk` |
 
-Both builds can be verified with `apksigner`:
+Verify APK signature with `apksigner`:
 ```bash
 apksigner verify -v app/build/outputs/apk/release/app-release.apk
 ```
@@ -405,22 +480,23 @@ npm run build:release
 [Hardware Sensors] (Acc, Gyro, Mag, Baro, Light, RotVec, Gravity, Orient, Step)
        │
        ▼ (Direct hardware interrupts via SensorEventListener)
-[SensorService] (Android Foreground Service)
+[SensorService] (Android Foreground Service with WakeLock)
        ├── onSensorChanged(event) -> Updates latest atomic cache arrays
        ├── onLocationChanged(loc) -> Latches high-precision GPS fixes
+       ├── BluetoothSyncManager   -> Transmits/receives sync triggers & clock pings
        │
        ▼ (ScheduledExecutorService executing every `samplingInterval` ms)
 [Synchronous Data Snapshot]
        │
-       ├── Stamped with: timestamp + all enabled channels + label + motion_state
+       ├── Stamped with: timestamp + elapsedMs + 11 sensor channels + label + motion_state
        ▼
 [Thread-Safe In-Memory Buffer] (CopyOnWriteArrayList<SensorData>)
        │
        ▼ (Triggered on STOP Recording)
 [StorageManager.saveSession()]
        │
-       ▼ (Direct Buffered File Stream)
-[CSV File Export] -> <ExternalFilesDir>/recordings/recording_all_sensors_<timestamp>.csv
+       ▼ (Direct Buffered File Stream with Device Prefix)
+[CSV File Export] -> <ExternalFilesDir>/recordings/[<Device>_]recording_all_sensors_<ts>.csv
 ```
 
 ### SensorApp Bridge Pipeline
@@ -446,16 +522,16 @@ npm run build:release
 
 ### Zero-Data-Loss Pause & Resume
 
-- **On PAUSE**: The sampling loop/timer is cancelled, and sensor state flags are set to paused. The in-memory buffer is **retained intact**.
+- **On PAUSE**: The sampling loop/timer is paused and sensor state flags are updated. The in-memory buffer is **retained intact**.
 - **On RESUME**: The sampling loop restarts immediately. Newly sampled frames are appended directly to the end of the existing buffer.
 - **On STOP**: The full accumulated dataset is serialized and flushed to disk in a single I/O operation.
 
-### Foreground Service Execution (`NativeApp`)
+### Foreground Service & WakeLock Execution (`NativeApp`)
 
-To ensure reliable, un-throttled data collection during long survey drives:
-1. `SensorService` is started with `startForegroundService()` and tied to a permanent Android notification channel (`IMPORTANCE_LOW`).
-2. Declares `foregroundServiceType="location"` to comply with Android 14+ background execution policies.
-3. Holds internal execution priority, preventing Android's Doze mode or aggressive battery managers from killing the sampling loop when the screen turns off.
+To guarantee un-throttled data collection during long survey drives:
+1. `SensorService` is declared with `foregroundServiceType="location|connectedDevice"` to comply with Android 14+ background execution policies.
+2. Acquires a `PowerManager.PARTIAL_WAKE_LOCK`, ensuring the CPU stays awake and sensor clocks continue running smoothly even when the screen is turned off.
+3. Holds internal execution priority, preventing OEM memory cleaners or battery optimizers from killing active sessions.
 
 ---
 
@@ -468,6 +544,12 @@ To ensure reliable, un-throttled data collection during long survey drives:
 | `ACTIVITY_RECOGNITION` | Both | Hardware pedometer / step counter access |
 | `FOREGROUND_SERVICE` | `NativeApp` | Allows sensor recording in the background |
 | `FOREGROUND_SERVICE_LOCATION` | `NativeApp` | Required by Android 14+ for background GPS recording |
+| `FOREGROUND_SERVICE_CONNECTED_DEVICE` | `NativeApp` | Required by Android 14+ for background Bluetooth synchronization |
+| `WAKE_LOCK` | `NativeApp` | Prevents CPU sleep when screen is off during survey sessions |
+| `BLUETOOTH` / `BLUETOOTH_ADMIN` | `NativeApp` | Legacy Bluetooth connection (Android ≤ 11) |
+| `BLUETOOTH_CONNECT` | `NativeApp` | Bluetooth SPP socket connection (Android 12+) |
+| `BLUETOOTH_SCAN` | `NativeApp` | Peer discovery without location flags (Android 12+) |
+| `BLUETOOTH_ADVERTISE` | `NativeApp` | Allows device to be discovered as a sync peer (Android 12+) |
 | `HIGH_SAMPLING_RATE_SENSORS` | `NativeApp` | Unlocks sensor sampling rates above 200 Hz (Android 12+) |
 | `POST_NOTIFICATIONS` | `NativeApp` | Displays the persistent foreground service notification (Android 13+) |
 | `READ_EXTERNAL_STORAGE` | `SensorApp` | Legacy file system compatibility (Android ≤ 12) |
