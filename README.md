@@ -1,10 +1,6 @@
 # RoadWatch FL — Multi-Sensor Road Telemetry & Dataset Recorder
 
 <p align="center">
-  <img src="SensorApp/assets/icon.png" alt="RoadWatch FL Icon" width="120" />
-</p>
-
-<p align="center">
   A high-frequency Android sensor recording and road-condition telemetry suite designed for vehicular pavement monitoring, roughness index profiling (IRI), multi-device fleet synchronization, and federated/centralized machine learning dataset collection.
 </p>
 
